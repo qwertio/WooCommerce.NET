@@ -9,6 +9,7 @@ using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
 using WooCommerceNET.Base;
 
 namespace WooCommerceNET
@@ -345,12 +346,17 @@ namespace WooCommerceNET
                 UseSimpleDictionaryFormat = true
             };
 
-            DataContractJsonSerializer ser = new DataContractJsonSerializer(typeof(T), settings);
-            MemoryStream stream = new MemoryStream(Encoding.UTF8.GetBytes(jsonString));
-            T obj = (T)ser.ReadObject(stream);
-            stream.Dispose();
-
-            return obj;
+            try {
+                DataContractJsonSerializer ser = new DataContractJsonSerializer(typeof(T), settings);
+                using (MemoryStream stream = new MemoryStream(Encoding.UTF8.GetBytes(jsonString))) {
+                    T obj = (T)ser.ReadObject(stream);
+                    return obj;
+                }
+            } catch (SerializationException ex) {
+                throw new DeserializeJSonException(ex, jsonString);
+            } catch (XmlException ex) {
+                throw new DeserializeJSonException(ex, jsonString);
+            } 
         }
 
         public string DateTimeFormat
@@ -359,6 +365,20 @@ namespace WooCommerceNET
             {
                 return IsLegacy ? "yyyy-MM-ddTHH:mm:ssZ" : "yyyy-MM-ddTHH:mm:ss";
             }
+        }
+    }
+
+    public class DeserializeJSonException : Exception {
+        public string JsonString { get; }
+
+        public DeserializeJSonException(XmlException xmlException, string jsonString) 
+            : base("Error deserializing JSON string", xmlException) {
+            JsonString = jsonString;
+        }
+
+        public DeserializeJSonException(SerializationException serializationException, string jsonString) 
+            : base("Error deserializing JSON string", serializationException) {
+            JsonString = jsonString;
         }
     }
 
